@@ -17,22 +17,26 @@ app.use(express.json({ limit: "2mb" }));
 
 // ── Health Check ──────────────────────────────────────────────────────────────
 app.get("/health", (req, res) => {
-  res.json({ status: "ok", service: "FactifAI API", version: "1.0.0" });
+  res.json({ status: "ok", service: "FactifAI API", version: "1.1.0" });
 });
 
 // ── POST /analyze ─────────────────────────────────────────────────────────────
 app.post("/analyze", async (req, res) => {
-  const { text } = req.body;
+  const startTime = Date.now();
 
-  if (!text || typeof text !== "string" || text.trim().length < 10) {
-    return res.status(400).json({
-      error: "Please provide at least 10 characters of content to analyze.",
-    });
-  }
-
-  const trimmed = text.trim();
+  // Always send proper JSON, even on errors
+  const sendError = (status, message) => {
+    res.status(status).json({ error: message });
+  };
 
   try {
+    const { text } = req.body;
+
+    if (!text || typeof text !== "string" || text.trim().length < 10) {
+      return sendError(400, "Please provide at least 10 characters of content to analyze.");
+    }
+
+    const trimmed = text.trim();
     let contentToAnalyze = trimmed;
     let sourceUrl = null;
     let scrapedMeta = null;
@@ -41,58 +45,62 @@ app.post("/analyze", async (req, res) => {
     if (!isUrl(trimmed) && !extractUrlFromText(trimmed)) {
       const isValid = validateInputText(trimmed);
       if (!isValid) {
-        return res.status(400).json({
-          error: "Invalid input detected. Please provide a meaningful text or URL, not raw keyboard mashing.",
-        });
+        return sendError(400, "Invalid input. Please provide meaningful text or a URL.");
       }
     }
 
-    // ── Step 1: Input Processing ──────────────────────────────────────────────
+    // ── Step 1: Input Processing (with timeout protection) ───────────────────
+    const scrapeWithTimeout = async (url) => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000); // 10s max
+      try {
+        return await scrapeArticle(url);
+      } finally {
+        clearTimeout(timeout);
+      }
+    };
+
     if (isUrl(trimmed)) {
-      // Direct URL input
       sourceUrl = trimmed;
       console.log(`[FactifAI] Scraping URL: ${sourceUrl}`);
       try {
-        scrapedMeta = await scrapeArticle(sourceUrl);
+        scrapedMeta = await scrapeWithTimeout(sourceUrl);
         contentToAnalyze = scrapedMeta.fullText;
       } catch (scrapeErr) {
         console.warn(`[FactifAI] Scrape failed: ${scrapeErr.message}`);
-        // Fallback: send URL itself for AI to handle
-        contentToAnalyze = `[Could not scrape article. URL: ${sourceUrl}]\nPlease analyze based on the URL domain and any available context.`;
+        return sendError(400, "Couldn't extract content from this URL. The site may block automated requests. Please paste the article text directly.");
       }
     } else {
-      // Check if text contains embedded URL
       const embeddedUrl = extractUrlFromText(trimmed);
       if (embeddedUrl) {
         sourceUrl = embeddedUrl;
         console.log(`[FactifAI] Embedded URL found: ${sourceUrl}`);
         try {
-          scrapedMeta = await scrapeArticle(sourceUrl);
+          scrapedMeta = await scrapeWithTimeout(sourceUrl);
           contentToAnalyze = `User query: ${trimmed}\n\nScraped article content:\n${scrapedMeta.fullText}`;
         } catch {
-          // Use original text if scraping fails
-          contentToAnalyze = trimmed;
+          return sendError(400, "Couldn't extract content from the embedded URL. Please paste the article text directly.");
         }
       }
     }
 
     // ── Post-Scrape Validation ────────────────────────────────────────────────
     if (sourceUrl) {
-      // Validate the scraped content to ensure it's not a generic video page or landing screen
       const isContentValid = validateInputText(contentToAnalyze.slice(0, 1500));
       if (!isContentValid) {
-        return res.status(400).json({
-          error: "The provided URL does not appear to contain a valid news article or textual claim. Please provide a direct link to an article.",
-        });
+        return sendError(400, "The URL does not appear to contain a valid news article. Please provide a direct link to an article.");
       }
     }
 
     // ── Step 2: Source Credibility Scoring ────────────────────────────────────
     const sourceScore = scoreSource(sourceUrl);
 
-    // ── Step 3: AI Analysis ───────────────────────────────────────────────────
+    // ── Step 3: AI Analysis (with the multi-key failover engine) ─────────────
     console.log(`[FactifAI] Analyzing content (${contentToAnalyze.length} chars)...`);
     const analysis = await analyzeContent(contentToAnalyze);
+
+    const elapsed = Date.now() - startTime;
+    console.log(`[FactifAI] ✔ ${analysis.label} (${analysis.confidence}%) in ${elapsed}ms`);
 
     // ── Step 4: Build Response ────────────────────────────────────────────────
     const result = {
@@ -113,39 +121,54 @@ app.post("/analyze", async (req, res) => {
       },
       newsArticles: [],
       verification: {
-        status: analysis.verification.status,
-        explanation: analysis.verification.explanation,
+        status: analysis.verification?.status || "Unverified",
+        explanation: analysis.verification?.explanation || "Could not verify.",
       },
       meta: {
         analyzedAt: new Date().toISOString(),
         contentLength: contentToAnalyze.length,
         hadUrl: !!sourceUrl,
         scrapedTitle: scrapedMeta?.title || null,
+        responseTimeMs: elapsed,
       },
     };
 
-    console.log(`[FactifAI] Result: ${result.label} (${result.confidence}% confidence)`);
     res.json(result);
   } catch (error) {
     console.error("[FactifAI] Analysis error:", error.message);
 
-    // Differentiate error types for better UX
-    if (error.message?.includes("API key") || error.status === 401) {
-      return res.status(500).json({ error: "API configuration error. Check your API key." });
-    }
-    if (error.message?.includes("rate limit") || error.status === 429) {
-      return res.status(429).json({ error: "Too many requests. Please wait a moment." });
+    // Map all errors to user-friendly messages — never expose raw errors
+    if (error.message?.includes("API key") || error.message?.includes("Invalid API") || error.status === 401) {
+      return sendError(500, "Service configuration error. Please contact support.");
     }
 
-    res.status(500).json({
-      error: "Analysis failed: " + (error.message || "Unknown error"),
-    });
+    if (error.message?.includes("rate limit") || error.message?.includes("429") || error.message?.includes("quota") || error.status === 429) {
+      return sendError(429, "Our AI service is experiencing high demand. Please try again in a few seconds.");
+    }
+
+    if (error.message?.includes("All AI providers")) {
+      return sendError(503, "Our AI service is temporarily busy. Please try again in a minute.");
+    }
+
+    if (error.message?.includes("malformed JSON") || error.message?.includes("Missing required")) {
+      return sendError(502, "AI returned an unexpected response. Please try again.");
+    }
+
+    // Generic fallback — NEVER expose raw error details
+    sendError(500, "Something went wrong. Please try again.");
   }
 });
 
 // ── Start Server ──────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
+  const keyCount = [
+    process.env.GROQ_API_KEY,
+    process.env.GROQ_API_KEY_2,
+    process.env.GROQ_API_KEY_3,
+  ].filter(Boolean).length;
+
   console.log(`\n🔍 FactifAI Backend running on http://localhost:${PORT}`);
   console.log(`📡 Health check: http://localhost:${PORT}/health`);
-  console.log(`🔑 Groq Key: ${process.env.GROQ_API_KEY ? "✓ Set" : "✗ MISSING!"}\n`);
+  console.log(`🔑 Groq API Keys: ${keyCount} configured`);
+  console.log(`⚡ Multi-key failover: ${keyCount > 1 ? "ACTIVE" : "SINGLE KEY (add more for resilience)"}\n`);
 });

@@ -188,7 +188,20 @@ export default function App() {
     const pendingQuery = text;
 
     try {
-      const result = await analyzeNews(text);
+      let result;
+      try {
+        result = await analyzeNews(text);
+      } catch (firstErr) {
+        // If it's a transient error, silently retry once after a brief delay
+        const isTransient = firstErr.message?.match(/try again|high demand|server error|busy|wait/i);
+        if (isTransient) {
+          console.log("[FactifAI] Transient error, retrying in 2s...");
+          await new Promise((r) => setTimeout(r, 2000));
+          result = await analyzeNews(text); // Let this one throw if it fails
+        } else {
+          throw firstErr;
+        }
+      }
       result._query = pendingQuery;
       setMessages((prev) => [...prev, { type: "result", data: result }]);
     } catch (err) {
