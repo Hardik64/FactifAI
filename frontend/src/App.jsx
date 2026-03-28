@@ -2,8 +2,10 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Moon, Sun, Scan, Link2, FileText,
-  Zap, ChevronDown, RotateCcw, Menu
+  Zap, ChevronDown, RotateCcw, Menu, Mic
 } from "lucide-react";
+import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
+import 'regenerator-runtime/runtime';
 import ResultCard from "./components/ResultCard";
 import LoadingSkeleton from "./components/LoadingSkeleton";
 import Sidebar from "./components/Sidebar";
@@ -31,10 +33,10 @@ function Header({ dark, onToggle, onToggleSidebar }) {
           <span className="font-display text-lg" style={{ color: "var(--text-primary)" }}>
             Factif<span style={{ color: "var(--accent)" }}>AI</span>
           </span>
-          <span className="text-xs px-2 py-0.5 rounded-full font-mono hidden sm:block"
+          {/* <span className="text-xs px-2 py-0.5 rounded-full font-mono hidden sm:block"
             style={{ background: "var(--bg-secondary)", color: "var(--text-muted)", border: "1px solid var(--border)" }}>
             beta
-          </span>
+          </span> */}
         </div>
         <button onClick={onToggle}
           className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:scale-105"
@@ -88,6 +90,47 @@ function EmptyState({ onExample }) {
 function InputBar({ onSubmit, loading, value, onChange }) {
   const textareaRef = useRef(null);
 
+  const {
+    transcript,
+    listening,
+    resetTranscript,
+    browserSupportsSpeechRecognition
+  } = useSpeechRecognition();
+
+  const prevTextRef = useRef("");
+  const silenceTimerRef = useRef(null);
+
+  // Sync transcript directly to the input box while listening
+  useEffect(() => {
+    if (listening) {
+      const prefix = prevTextRef.current ? prevTextRef.current + (prevTextRef.current.endsWith(" ") ? "" : " ") : "";
+      onChange(prefix + transcript);
+
+      // Reset the silence auto-stop timer
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+      
+      silenceTimerRef.current = setTimeout(() => {
+        SpeechRecognition.stopListening();
+      }, 3000); // 3 seconds of silence
+    } else {
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+    }
+
+    return () => {
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+    };
+  }, [transcript, listening]);
+
+  const toggleListen = () => {
+    if (listening) {
+      SpeechRecognition.stopListening();
+    } else {
+      prevTextRef.current = value;
+      resetTranscript();
+      SpeechRecognition.startListening({ continuous: true });
+    }
+  };
+
   const detectType = (text) => {
     if (!text) return null;
     const t = text.trim();
@@ -106,14 +149,14 @@ function InputBar({ onSubmit, loading, value, onChange }) {
   };
 
   return (
-    <div className="border-t py-4 sticky bottom-0 z-30" style={{ borderColor: "var(--border)", background: "var(--bg-primary)" }}>
-      <div className="max-w-3xl mx-auto px-4">
-        <div className="card p-3 focus-within:ring-2 transition-all shadow-sm"
-          style={{ "--tw-ring-color": "var(--accent)" }}>
+    <div className="w-full relative z-30" style={{ background: "var(--bg-primary)", borderTop: "1px solid var(--border)" }}>
+      <div className="max-w-3xl mx-auto p-4 md:py-5">
+        <div className="relative card overflow-hidden focus-within:ring-2 focus-within:ring-[var(--accent)] transition-all flex flex-col shadow-md"
+          style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}>
           {type && (
-            <div className="flex items-center gap-1.5 mb-2 px-1">
+            <div className="flex items-center gap-1.5 px-3 pt-3">
               <type.icon size={11} style={{ color: "var(--accent)" }} />
-              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--accent)" }}>
+              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--accent)" }}>
                 {type.label} detected
               </span>
             </div>
@@ -125,39 +168,60 @@ function InputBar({ onSubmit, loading, value, onChange }) {
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Paste news text, a URL, or ask: 'Is this fake: ...'"
-            rows={2}
-            className="w-full resize-none bg-transparent text-sm outline-none placeholder-shown:text-base"
+            rows={1}
+            className="w-full resize-none bg-transparent text-sm outline-none placeholder-shown:text-base px-4 py-3"
             style={{
               color: "var(--text-primary)",
-              fontFamily: "'DM Sans', sans-serif",
-              minHeight: "56px",
+              minHeight: type ? "40px" : "48px",
               maxHeight: "200px",
               "::placeholder": { color: "var(--text-muted)" },
             }}
           />
 
-          <div className="flex items-center justify-between mt-2 pt-2" style={{ borderTop: "1px solid var(--border)" }}>
-            <span className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>
-              {value.length > 0 ? `${value.length} chars` : "⏎ to send, Shift+⏎ for newline"}
+          <div className="flex items-center justify-between px-3 pb-3">
+            <span className="text-[11px] font-mono px-1 flex-1" style={{ color: "var(--text-muted)" }}>
+              {listening ? "Listening..." : (value.length > 0 ? `${value.length} chars` : "⏎ to send, Shift+⏎ for newline")}
             </span>
-            <button
-              onClick={onSubmit}
-              disabled={loading || !value.trim()}
-              className="btn-primary flex items-center gap-2 text-sm py-2 px-4 shadow-sm"
-            >
-              {loading ? (
-                <>
-                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Analyzing...
-                </>
-              ) : (
-                <>
-                  <Scan size={14} />
-                  Analyze
-                </>
+
+            <div className="flex items-center gap-2">
+              {browserSupportsSpeechRecognition && (
+                <button
+                  onClick={toggleListen}
+                  className={`p-2 rounded-full transition-colors ${listening ? 'bg-red-500/10 text-red-500 hover:bg-red-500/20 shadow-sm' : 'hover:bg-[var(--bg-secondary)]'}`}
+                  style={{ color: listening ? "" : "var(--text-muted)" }}
+                  title={listening ? "Stop recording (esc to stop)" : "Dictate text"}
+                >
+                  <Mic size={15} className={listening ? "animate-pulse" : ""} />
+                </button>
               )}
-            </button>
+
+              <button
+                onClick={onSubmit}
+                disabled={loading || !value.trim()}
+                className="btn-primary flex items-center gap-2 text-xs py-1.5 px-3 shadow-sm"
+                style={{ borderRadius: "8px" }}
+              >
+                {loading ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Analyzing
+                  </>
+                ) : (
+                  <>
+                    <Scan size={13} />
+                    Analyze
+                  </>
+                )}
+              </button>
+            </div>
           </div>
+        </div>
+        
+        {/* Subtle footer credit area beneath the input */}
+        <div className="text-center mt-3">
+          <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+            FactifAI can make mistakes. Verify important information.
+          </p>
         </div>
       </div>
     </div>
@@ -165,7 +229,10 @@ function InputBar({ onSubmit, loading, value, onChange }) {
 }
 
 export default function App() {
-  const [dark, setDark] = useState(false);
+  const [dark, setDark] = useState(() => {
+    const saved = localStorage.getItem("theme");
+    return saved !== null ? saved === "dark" : true;
+  });
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -193,6 +260,7 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", dark);
+    localStorage.setItem("theme", dark ? "dark" : "light");
   }, [dark]);
 
   useEffect(() => {

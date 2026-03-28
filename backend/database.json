@@ -47,9 +47,201 @@
           "_query": "India Denies Reports Of Musk Joining Trump-PM Modi Phone Call On Iran WarTrump had called PM Modi to discuss the war with Iran on Tuesday, the first interaction between the two leaders since Israel and the US' military strikes on Iran began on February 28."
         },
         "timestamp": "2026-03-28T17:19:51.474Z"
+      },
+      {
+        "type": "query",
+        "query": "LPG Gas Shortage in India News Live Update: 'Jag Vasant' carrying 47,000 tonnes of LPG reaches Gujarat's Vadinar port\nLPG Gas Shortage in India News Live Update : The petroleum ministry on Friday raised the allocation of commercial LPG to states and Union Territories by 20% to meet growing demand from industries such as steel, automobiles, textiles and chemicals. With this increase, total supply has reached 70% of pre-conflict levels.\n\nThe additional quota will be provided to industrial units that are registered with oil marketing companies, have declared their end use of LPG cylinders, and are connected to or have signed up for piped gas networks. However, units requiring LPG for specialised processes where natural gas cannot be used will be exempted.\n\nThe move follows earlier phased allocations after initial supply cuts, including incentives for states implementing reforms to expand city gas distribution. The government has prioritised labour-intensive and process industries, while urging more states to adopt reforms to access higher allocations. Stay with TOI For Latest Updates",
+        "timestamp": "2026-03-28T18:43:12.763Z"
+      },
+      {
+        "type": "result",
+        "data": {
+          "label": "Real",
+          "confidence": 80,
+          "headline": "LPG Gas Shortage in India",
+          "summary": "India increases LPG allocation to meet industrial demand",
+          "reasons": [
+            "The article mentions a specific ship, 'Jag Vasant', carrying 47,000 tonnes of LPG",
+            "It references a 20% increase in commercial LPG allocation by the petroleum ministry",
+            "The article provides details on the eligibility criteria for industrial units to receive the additional quota"
+          ],
+          "suspiciousPatterns": [],
+          "inputType": "article",
+          "sourceScore": {
+            "score": null,
+            "domain": null,
+            "label": "No URL",
+            "tier": "unknown",
+            "color": "gray",
+            "url": null
+          },
+          "newsArticles": [],
+          "verification": {
+            "status": "Likely True",
+            "explanation": "The article's claims about the LPG shortage and the government's response align with typical reporting on energy supply issues. The mention of specific details, such as the ship's name and the allocation increase, suggests a factual basis. However, without external confirmation, the accuracy of these details cannot be guaranteed."
+          },
+          "meta": {
+            "analyzedAt": "2026-03-28T18:43:12.749Z",
+            "contentLength": 1097,
+            "hadUrl": false,
+            "scrapedTitle": null,
+            "responseTimeMs": 1042
+          },
+          "_query": "LPG Gas Shortage in India News Live Update: 'Jag Vasant' carrying 47,000 tonnes of LPG reaches Gujarat's Vadinar port\nLPG Gas Shortage in India News Live Update : The petroleum ministry on Friday raised the allocation of commercial LPG to states and Union Territories by 20% to meet growing demand from industries such as steel, automobiles, textiles and chemicals. With this increase, total supply has reached 70% of pre-conflict levels.\n\nThe additional quota will be provided to industrial units that are registered with oil marketing companies, have declared their end use of LPG cylinders, and are connected to or have signed up for piped gas networks. However, units requiring LPG for specialised processes where natural gas cannot be used will be exempted.\n\nThe move follows earlier phased allocations after initial supply cuts, including incentives for states implementing reforms to expand city gas distribution. The government has prioritised labour-intensive and process industries, while urging more states to adopt reforms to access higher allocations. Stay with TOI For Latest Updates"
+        },
+        "timestamp": "2026-03-28T18:43:12.763Z"
       }
     ],
     "createdAt": "2026-03-28T17:19:51.461Z",
-    "lastActivity": "2026-03-28T17:19:51.474Z"
+    "lastActivity": "2026-03-28T18:43:12.763Z"
+  },
+  {
+    "_id": "f68905f3-3c19-4f71-9d06-7affde71358a",
+    "title": "https://github.com/Hardik64/FactifAI",
+    "messages": [
+      {
+        "type": "query",
+        "query": "https://github.com/Hardik64/FactifAI",
+        "timestamp": "2026-03-28T17:33:01.287Z"
+      },
+      {
+        "type": "result",
+        "data": {
+          "label": "Real",
+          "confidence": 90,
+          "headline": "GitHub Repository Page",
+          "summary": "The content appears to be a genuine GitHub repository page.",
+          "reasons": [
+            "The text mentions a specific GitHub repository",
+            "It includes GitHub-specific terminology like 'Fork' and 'Star'",
+            "The content is devoid of sensational or misleading language"
+          ],
+          "suspiciousPatterns": [],
+          "inputType": "article",
+          "sourceScore": {
+            "score": 40,
+            "domain": "github.com",
+            "label": "Unknown Source",
+            "tier": "unknown",
+            "color": "yellow",
+            "url": "https://github.com/Hardik64/FactifAI"
+          },
+          "newsArticles": [],
+          "verification": {
+            "status": "Unverified",
+            "explanation": "The content does not make any specific claims that can be verified. It seems to be a standard GitHub repository page with no apparent misinformation. The authenticity of the repository itself cannot be confirmed without further context."
+          },
+          "meta": {
+            "analyzedAt": "2026-03-28T17:33:01.263Z",
+            "contentLength": 330,
+            "hadUrl": true,
+            "scrapedTitle": "Hardik64/FactifAI · GitHub",
+            "responseTimeMs": 2424
+          },
+          "_query": "https://github.com/Hardik64/FactifAI"
+        },
+        "timestamp": "2026-03-28T17:33:01.287Z"
+      }
+    ],
+    "createdAt": "2026-03-28T17:33:01.274Z",
+    "lastActivity": "2026-03-28T17:33:01.287Z"
+  },
+  {
+    "_id": "368ad530-4269-4d89-b388-347001942600",
+    "title": "Ambani is new President",
+    "messages": [
+      {
+        "type": "query",
+        "query": "Ambani is new President",
+        "timestamp": "2026-03-28T18:19:37.928Z"
+      },
+      {
+        "type": "result",
+        "data": {
+          "label": "Fake",
+          "confidence": 80,
+          "headline": "Ambani New President",
+          "summary": "The claim that Ambani is the new president lacks context and details",
+          "reasons": [
+            "Lack of specific details about the position or country",
+            "No mention of election or appointment process",
+            "Ambani is a known business figure, not typically associated with political offices"
+          ],
+          "suspiciousPatterns": [
+            "Lack of credible sources or references"
+          ],
+          "inputType": "claim",
+          "sourceScore": {
+            "score": null,
+            "domain": null,
+            "label": "No URL",
+            "tier": "unknown",
+            "color": "gray",
+            "url": null
+          },
+          "newsArticles": [],
+          "verification": {
+            "status": "Unverified",
+            "explanation": "There is no widely known or recent information about Ambani being elected or appointed as a president of a country. Without more context, it's difficult to confirm or deny this claim. Further research is needed to verify the accuracy of this statement."
+          },
+          "meta": {
+            "analyzedAt": "2026-03-28T18:19:37.906Z",
+            "contentLength": 23,
+            "hadUrl": false,
+            "scrapedTitle": null,
+            "responseTimeMs": 1280
+          },
+          "_query": "Ambani is new President"
+        },
+        "timestamp": "2026-03-28T18:19:37.928Z"
+      },
+      {
+        "type": "query",
+        "query": "Payal gaming MMS is real",
+        "timestamp": "2026-03-28T18:41:49.346Z"
+      },
+      {
+        "type": "result",
+        "data": {
+          "label": "Fake",
+          "confidence": 80,
+          "headline": "Payal gaming MMS claim",
+          "summary": "The claim about Payal gaming MMS being real lacks credible evidence.",
+          "reasons": [
+            "Lack of credible sources",
+            "Insufficient context provided",
+            "Unsubstantiated assertion"
+          ],
+          "suspiciousPatterns": [
+            "Unverified claim without evidence"
+          ],
+          "inputType": "claim",
+          "sourceScore": {
+            "score": null,
+            "domain": null,
+            "label": "No URL",
+            "tier": "unknown",
+            "color": "gray",
+            "url": null
+          },
+          "newsArticles": [],
+          "verification": {
+            "status": "Unverified",
+            "explanation": "There is no available information to confirm or deny the existence of Payal gaming MMS. The claim cannot be verified without further evidence or credible sources. Therefore, it remains unverified."
+          },
+          "meta": {
+            "analyzedAt": "2026-03-28T18:41:49.330Z",
+            "contentLength": 24,
+            "hadUrl": false,
+            "scrapedTitle": null,
+            "responseTimeMs": 1266
+          },
+          "_query": "Payal gaming MMS is real"
+        },
+        "timestamp": "2026-03-28T18:41:49.346Z"
+      }
+    ],
+    "createdAt": "2026-03-28T18:19:37.916Z",
+    "lastActivity": "2026-03-28T18:41:49.346Z"
   }
 ]

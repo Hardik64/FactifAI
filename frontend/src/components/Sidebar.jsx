@@ -178,6 +178,13 @@ export default function Sidebar({
         </div>
 
         {/* Chat list */}
+        {chats.length > 0 && (
+          <div style={{ padding: "12px 16px 4px" }}>
+            <span className="text-xs font-bold uppercase" style={{ color: "var(--text-muted)", letterSpacing: "0.08em" }}>
+              Your Analysis
+            </span>
+          </div>
+        )}
         <div className="sidebar-list">
           {filtered.length === 0 ? (
             <div className="sidebar-empty">
