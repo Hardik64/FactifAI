@@ -7,6 +7,7 @@ const cors = require("cors");
 const { analyzeContent, validateInputText } = require("./analyzer");
 const { scoreSource } = require("./credibility");
 const { scrapeArticle, isUrl, extractUrlFromText } = require("./scraper");
+const chatRoutes = require("./routes/chats");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -15,9 +16,12 @@ const PORT = process.env.PORT || 3001;
 app.use(cors({ origin: ["http://localhost:3000", "http://localhost:5173"] }));
 app.use(express.json({ limit: "2mb" }));
 
+// ── Chat History Routes ──────────────────────────────────────────────────────
+app.use("/api/chats", chatRoutes);
+
 // ── Health Check ──────────────────────────────────────────────────────────────
 app.get("/health", (req, res) => {
-  res.json({ status: "ok", service: "FactifAI API", version: "1.1.0" });
+  res.json({ status: "ok", service: "FactifAI API", version: "1.2.0" });
 });
 
 // ── POST /analyze ─────────────────────────────────────────────────────────────
@@ -160,6 +164,9 @@ app.post("/analyze", async (req, res) => {
 });
 
 // ── Start Server ──────────────────────────────────────────────────────────────
+const { initDB } = require("./db");
+initDB();
+
 app.listen(PORT, () => {
   const keyCount = [
     process.env.GROQ_API_KEY,

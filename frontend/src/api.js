@@ -1,6 +1,7 @@
 // src/api.js
 const API_BASE = import.meta.env.VITE_API_URL || "";
 
+// ── News Analysis ─────────────────────────────────────────────────────────────
 export async function analyzeNews(text) {
   let res;
   try {
@@ -10,11 +11,9 @@ export async function analyzeNews(text) {
       body: JSON.stringify({ text }),
     });
   } catch (networkErr) {
-    // Network failure (server down, DNS, CORS, etc.)
     throw new Error("Cannot reach the server. Please check your connection and try again.");
   }
 
-  // Read body as text first — prevents "Failed to execute 'json' on 'Response'" crash
   let bodyText;
   try {
     bodyText = await res.text();
@@ -22,12 +21,10 @@ export async function analyzeNews(text) {
     throw new Error("Server returned an empty response. Please try again.");
   }
 
-  // Try to parse as JSON
   let data;
   try {
     data = JSON.parse(bodyText);
   } catch {
-    // Server returned non-JSON (HTML error page, empty body, etc.)
     if (res.status === 429) {
       throw new Error("High demand — please wait a few seconds and try again.");
     }
@@ -41,10 +38,66 @@ export async function analyzeNews(text) {
     throw new Error(data.error || `Server error (${res.status}). Please try again.`);
   }
 
-  // Final sanity check — make sure we got a valid analysis result
   if (!data.label || !data.reasons) {
     throw new Error("Incomplete analysis result. Please try again.");
   }
 
   return data;
+}
+
+// ── Chat History CRUD ─────────────────────────────────────────────────────────
+
+async function chatFetch(url, options = {}) {
+  try {
+    const res = await fetch(`${API_BASE}${url}`, {
+      headers: { "Content-Type": "application/json" },
+      ...options,
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || `Request failed (${res.status})`);
+    }
+    return res.json();
+  } catch (err) {
+    if (err.message?.includes("Request failed")) throw err;
+    // Network error — silently fail for chat operations (non-critical)
+    console.warn("[Chat API]", err.message);
+    return null;
+  }
+}
+
+/** Fetch all chats (sidebar list) */
+export function fetchChats() {
+  return chatFetch("/api/chats");
+}
+
+/** Create a new empty chat */
+export function createChat() {
+  return chatFetch("/api/chats", { method: "POST" });
+}
+
+/** Get full chat with all messages */
+export function fetchChat(id) {
+  return chatFetch(`/api/chats/${id}`);
+}
+
+/** Append query+result to a chat */
+export function addMessage(id, query, result) {
+  return chatFetch(`/api/chats/${id}/messages`, {
+    method: "POST",
+    body: JSON.stringify({ query, result }),
+  });
+}
+
+/** Delete a chat */
+export function deleteChat(id) {
+  return chatFetch(`/api/chats/${id}`, { method: "DELETE" });
+}
+
+/** Rename a chat */
+export function renameChat(id, title) {
+  return chatFetch(`/api/chats/${id}/title`, {
+    method: "PUT",
+    body: JSON.stringify({ title }),
+  });
 }

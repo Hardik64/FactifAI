@@ -1,12 +1,13 @@
 // src/App.jsx
 import { useState, useRef, useEffect, useCallback } from "react";
 import {
-  Moon, Sun, Send, Trash2, Scan, Link2, FileText,
-  Zap, ChevronDown, RotateCcw
+  Moon, Sun, Scan, Link2, FileText,
+  Zap, ChevronDown, RotateCcw, Menu
 } from "lucide-react";
 import ResultCard from "./components/ResultCard";
 import LoadingSkeleton from "./components/LoadingSkeleton";
-import { analyzeNews } from "./api";
+import Sidebar from "./components/Sidebar";
+import { analyzeNews, fetchChats, createChat, fetchChat, addMessage, deleteChat, renameChat } from "./api";
 
 const EXAMPLE_INPUTS = [
   { icon: "🔗", label: "URL", text: "https://www.bbc.com/news/world-us-canada-latest" },
@@ -14,12 +15,15 @@ const EXAMPLE_INPUTS = [
   { icon: "❓", label: "Prompt", text: "Check if this is fake: Scientists discover that drinking coffee reverses aging by 20 years." },
 ];
 
-function Header({ dark, onToggle }) {
+function Header({ dark, onToggle, onToggleSidebar }) {
   return (
     <header className="border-b sticky top-0 z-40 backdrop-blur-md"
       style={{ borderColor: "var(--border)", background: "rgba(var(--bg-primary), 0.85)" }}>
-      <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
+      <div className="w-full mx-auto px-4 h-14 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
+          <button onClick={onToggleSidebar} className="p-1.5 -ml-1.5 rounded-lg transition-colors md:hidden" style={{ color: "var(--text-secondary)" }}>
+            <Menu size={18} />
+          </button>
           <div className="w-7 h-7 rounded-lg flex items-center justify-center text-sm"
             style={{ background: "var(--accent)" }}>
             🔍
@@ -102,11 +106,10 @@ function InputBar({ onSubmit, loading, value, onChange }) {
   };
 
   return (
-    <div className="border-t py-4" style={{ borderColor: "var(--border)", background: "var(--bg-primary)" }}>
-      <div className="max-w-2xl mx-auto px-4">
-        <div className="card p-3 focus-within:ring-2 transition-all"
+    <div className="border-t py-4 sticky bottom-0 z-30" style={{ borderColor: "var(--border)", background: "var(--bg-primary)" }}>
+      <div className="max-w-3xl mx-auto px-4">
+        <div className="card p-3 focus-within:ring-2 transition-all shadow-sm"
           style={{ "--tw-ring-color": "var(--accent)" }}>
-          {/* Type indicator */}
           {type && (
             <div className="flex items-center gap-1.5 mb-2 px-1">
               <type.icon size={11} style={{ color: "var(--accent)" }} />
@@ -140,7 +143,7 @@ function InputBar({ onSubmit, loading, value, onChange }) {
             <button
               onClick={onSubmit}
               disabled={loading || !value.trim()}
-              className="btn-primary flex items-center gap-2 text-sm py-2 px-4"
+              className="btn-primary flex items-center gap-2 text-sm py-2 px-4 shadow-sm"
             >
               {loading ? (
                 <>
@@ -169,6 +172,25 @@ export default function App() {
   const [error, setError] = useState(null);
   const bottomRef = useRef(null);
 
+  // Chat History State
+  const [chats, setChats] = useState([]);
+  const [activeChatId, setActiveChatId] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Load chat list on mount
+  useEffect(() => {
+    loadChats();
+  }, []);
+
+  const loadChats = async () => {
+    try {
+      const data = await fetchChats();
+      if (data) setChats(data);
+    } catch (err) {
+      console.error("Failed to load chats:", err);
+    }
+  };
+
   useEffect(() => {
     document.documentElement.classList.toggle("dark", dark);
   }, [dark]);
@@ -176,6 +198,69 @@ export default function App() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  // Load active chat
+  useEffect(() => {
+    if (!activeChatId) {
+      setMessages([]);
+      return;
+    }
+
+    const loadCurrentChat = async () => {
+      try {
+        const data = await fetchChat(activeChatId);
+        if (data && data.messages) {
+          const mapped = [];
+          let lastQuery = "";
+          data.messages.forEach(m => {
+            if (m.type === "query") {
+              lastQuery = m.query;
+            } else if (m.type === "result") {
+              mapped.push({ type: "result", data: { ...m.data, _query: lastQuery } });
+            }
+          });
+          setMessages(mapped);
+        }
+      } catch (err) {
+        console.error("Failed to load chat:", err);
+        setError("Could not load chat history.");
+      }
+    };
+
+    loadCurrentChat();
+    if (window.innerWidth < 768) setSidebarOpen(false); // auto-close on mobile
+  }, [activeChatId]);
+
+  const handleNewChat = () => {
+    setActiveChatId(null);
+    setMessages([]);
+    setError(null);
+    if (window.innerWidth < 768) setSidebarOpen(false);
+  };
+
+  const handleSelectChat = (id) => {
+    setActiveChatId(id);
+    setError(null);
+  };
+
+  const handleDeleteChat = async (id) => {
+    try {
+      await deleteChat(id);
+      if (activeChatId === id) handleNewChat();
+      await loadChats();
+    } catch (err) {
+      console.error("Failed to delete", err);
+    }
+  };
+
+  const handleRenameChat = async (id, title) => {
+    try {
+      await renameChat(id, title);
+      await loadChats();
+    } catch (err) {
+      console.error("Failed to rename", err);
+    }
+  };
 
   const handleSubmit = useCallback(async () => {
     const text = input.trim();
@@ -192,24 +277,47 @@ export default function App() {
       try {
         result = await analyzeNews(text);
       } catch (firstErr) {
-        // If it's a transient error, silently retry once after a brief delay
         const isTransient = firstErr.message?.match(/try again|high demand|server error|busy|wait/i);
         if (isTransient) {
           console.log("[FactifAI] Transient error, retrying in 2s...");
           await new Promise((r) => setTimeout(r, 2000));
-          result = await analyzeNews(text); // Let this one throw if it fails
+          result = await analyzeNews(text);
         } else {
           throw firstErr;
         }
       }
+
       result._query = pendingQuery;
+
+      let currentChatId = activeChatId;
+
+      if (!currentChatId) {
+        try {
+          const newChat = await createChat();
+          if (newChat) currentChatId = newChat._id;
+        } catch (e) {
+          console.error("Failed to create chat in DB, continuing transiently");
+        }
+      }
+
       setMessages((prev) => [...prev, { type: "result", data: result }]);
+
+      if (currentChatId) {
+        try {
+          await addMessage(currentChatId, pendingQuery, result);
+          await loadChats();
+          if (activeChatId !== currentChatId) setActiveChatId(currentChatId);
+        } catch (e) {
+          console.error("Failed to save message to DB");
+        }
+      }
+
     } catch (err) {
       setError(err.message || "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
-  }, [input, loading]);
+  }, [input, loading, activeChatId]);
 
   const handleExample = (text) => {
     setInput(text);
@@ -221,56 +329,70 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: "var(--bg-primary)" }}>
-      <Header dark={dark} onToggle={() => setDark(!dark)} />
-
-      {/* Chat area */}
-      <main className="flex-1 overflow-y-auto">
-        <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
-          {messages.length === 0 && !loading && (
-            <EmptyState onExample={handleExample} />
-          )}
-
-          {messages.map((msg, i) =>
-            msg.type === "result" ? (
-              <ResultCard key={i} result={msg.data} index={i} />
-            ) : null
-          )}
-
-          {loading && <LoadingSkeleton query={input || "Analyzing..."} />}
-
-          {error && (
-            <div className="flex gap-3 items-start p-4 rounded-xl border animate-fade-in"
-              style={{ background: "#fef2f2", borderColor: "#fecaca" }}>
-              <span className="text-red-500 text-lg">⚠️</span>
-              <div>
-                <p className="text-sm font-semibold text-red-700">Analysis failed</p>
-                <p className="text-sm text-red-600 mt-0.5">{error}</p>
-              </div>
-            </div>
-          )}
-
-          {messages.length > 0 && (
-            <div className="flex justify-center">
-              <button onClick={handleClear}
-                className="flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg transition-all hover:scale-105"
-                style={{ color: "var(--text-muted)", background: "var(--bg-secondary)", border: "1px solid var(--border)" }}>
-                <RotateCcw size={11} />
-                Clear chat
-              </button>
-            </div>
-          )}
-
-          <div ref={bottomRef} />
-        </div>
-      </main>
-
-      <InputBar
-        value={input}
-        onChange={setInput}
-        onSubmit={handleSubmit}
-        loading={loading}
+    <div className="flex h-screen overflow-hidden" style={{ background: "var(--bg-primary)" }}>
+      {/* Sidebar Layout Layer */}
+      <Sidebar
+        chats={chats}
+        activeChatId={activeChatId}
+        onSelectChat={handleSelectChat}
+        onNewChat={handleNewChat}
+        onDeleteChat={handleDeleteChat}
+        onRenameChat={handleRenameChat}
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen(!sidebarOpen)}
       />
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 transition-all duration-300">
+        <Header dark={dark} onToggle={() => setDark(!dark)} onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
+
+        <main className="flex-1 overflow-y-auto w-full">
+          <div className="max-w-3xl mx-auto px-4 py-6 space-y-6 min-h-full pb-8">
+            {messages.length === 0 && !loading && (
+              <EmptyState onExample={handleExample} />
+            )}
+
+            {messages.map((msg, i) =>
+              msg.type === "result" ? (
+                <ResultCard key={i} result={msg.data} index={i} />
+              ) : null
+            )}
+
+            {loading && <LoadingSkeleton query={input || "Analyzing..."} />}
+
+            {error && (
+              <div className="flex gap-3 items-start p-4 rounded-xl border animate-fade-in shadow-sm"
+                style={{ background: "#fef2f2", borderColor: "#fecaca" }}>
+                <span className="text-red-500 text-lg">⚠️</span>
+                <div>
+                  <p className="text-sm font-semibold text-red-700">Analysis failed</p>
+                  <p className="text-sm text-red-600 mt-0.5">{error}</p>
+                </div>
+              </div>
+            )}
+
+            {!activeChatId && messages.length > 0 && !loading && (
+               <div className="flex justify-center mt-6">
+                 <button onClick={handleClear}
+                   className="flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg transition-all hover:scale-105"
+                   style={{ color: "var(--text-muted)", background: "var(--bg-secondary)", border: "1px solid var(--border)" }}>
+                   <RotateCcw size={11} />
+                   Clear chat
+                 </button>
+               </div>
+            )}
+
+            <div ref={bottomRef} className="h-4" />
+          </div>
+        </main>
+
+        <InputBar
+          value={input}
+          onChange={setInput}
+          onSubmit={handleSubmit}
+          loading={loading}
+        />
+      </div>
     </div>
   );
 }

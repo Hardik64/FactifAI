@@ -1,0 +1,55 @@
+[
+  {
+    "_id": "d93ee0f4-a364-4c16-8b45-ea71cda96d5d",
+    "title": "India Denies Reports Of Musk Joining Trump-PM Modi...",
+    "messages": [
+      {
+        "type": "query",
+        "query": "India Denies Reports Of Musk Joining Trump-PM Modi Phone Call On Iran WarTrump had called PM Modi to discuss the war with Iran on Tuesday, the first interaction between the two leaders since Israel and the US' military strikes on Iran began on February 28.",
+        "timestamp": "2026-03-28T17:19:51.474Z"
+      },
+      {
+        "type": "result",
+        "data": {
+          "label": "Real",
+          "confidence": 80,
+          "headline": "India Denies Musk Joining Trump-PM Modi Call",
+          "summary": "India denies reports of Elon Musk joining a phone call between Trump and PM Modi to discuss the Iran war",
+          "reasons": [
+            "The report mentions a specific date for the US and Israel's military strikes on Iran",
+            "It references a phone call between Trump and PM Modi, which is a verifiable event",
+            "The denial from India is a common pattern in diplomatic communications"
+          ],
+          "suspiciousPatterns": [
+            "Lack of direct quotes from official sources"
+          ],
+          "inputType": "article",
+          "sourceScore": {
+            "score": null,
+            "domain": null,
+            "label": "No URL",
+            "tier": "unknown",
+            "color": "gray",
+            "url": null
+          },
+          "newsArticles": [],
+          "verification": {
+            "status": "Unverified",
+            "explanation": "While the report mentions real events and figures, there is no concrete evidence to confirm the specifics of the phone call or Elon Musk's involvement. The report's accuracy depends on the credibility of the sources, which are not explicitly mentioned. Without further information, the claim remains unverified."
+          },
+          "meta": {
+            "analyzedAt": "2026-03-28T17:19:51.453Z",
+            "contentLength": 256,
+            "hadUrl": false,
+            "scrapedTitle": null,
+            "responseTimeMs": 1127
+          },
+          "_query": "India Denies Reports Of Musk Joining Trump-PM Modi Phone Call On Iran WarTrump had called PM Modi to discuss the war with Iran on Tuesday, the first interaction between the two leaders since Israel and the US' military strikes on Iran began on February 28."
+        },
+        "timestamp": "2026-03-28T17:19:51.474Z"
+      }
+    ],
+    "createdAt": "2026-03-28T17:19:51.461Z",
+    "lastActivity": "2026-03-28T17:19:51.474Z"
+  }
+]
