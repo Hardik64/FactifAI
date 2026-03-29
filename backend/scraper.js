@@ -81,12 +81,46 @@ async function scrapeArticle(url) {
       throw new Error("Could not extract meaningful content from URL");
     }
 
+    // ── Extract article signals for validation ───────────────────────────────
+    const hasArticleTag = $("article").length > 0 ||
+      $('[class*="article-body"]').length > 0 ||
+      $('[class*="post-content"]').length > 0 ||
+      $('[class*="story-body"]').length > 0 ||
+      $('[class*="entry-content"]').length > 0;
+
+    const h1Text = $("h1").first().text().trim();
+    const h1WordCount = h1Text ? h1Text.split(/\s+/).filter(Boolean).length : 0;
+
+    const richParagraphCount = $("p")
+      .filter((_, el) => $(el).text().trim().length > 40)
+      .length;
+
+    const ogType = ($('meta[property="og:type"]').attr("content") || "").toLowerCase().trim();
+
+    const hasPublishedDate = !!(
+      $('meta[property="article:published_time"]').attr("content") ||
+      $('[class*="date"]').length > 0 ||
+      $('time[datetime]').length > 0 ||
+      $('script[type="application/ld+json"]').toArray().some((el) => {
+        try { return JSON.parse($(el).html()).datePublished; } catch { return false; }
+      })
+    );
+
+    const signals = {
+      hasArticleTag,
+      h1WordCount,
+      richParagraphCount,
+      ogType,
+      hasPublishedDate,
+    };
+
     return {
       success: true,
       title,
       description,
       body: cleanBody,
       fullText: `Title: ${title}\n\nSummary: ${description}\n\nContent: ${cleanBody}`,
+      signals,
     };
   } catch (error) {
     if (error.code === "ECONNREFUSED" || error.code === "ENOTFOUND") {

@@ -1,12 +1,15 @@
 // backend/server.js
 // FactifAI Backend - Express API Server
 
-require("dotenv").config();
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, ".env") });
 const express = require("express");
 const cors = require("cors");
 const { analyzeContent, validateInputText } = require("./analyzer");
 const { scoreSource } = require("./credibility");
 const { scrapeArticle, isUrl, extractUrlFromText } = require("./scraper");
+const { validateUrlContent, isSocialMediaUrl } = require("./urlValidator");
+const { runDeepScan } = require("./deepScan");
 const chatRoutes = require("./routes/chats");
 
 const app = express();
@@ -66,6 +69,17 @@ app.post("/analyze", async (req, res) => {
 
     if (isUrl(trimmed)) {
       sourceUrl = trimmed;
+
+      // ── Pre-fetch: Social media blocklist check ────────────────────────────
+      if (isSocialMediaUrl(sourceUrl)) {
+        return res.status(400).json({
+          error: "Social media URLs are not supported for scraping. Please paste the post text directly into the input box.",
+          errorType: "INVALID_URL_CONTENT",
+          errorCode: "SOCIAL_MEDIA_URL",
+          suggestion: "Please paste the article text directly into the input box instead.",
+        });
+      }
+
       console.log(`[FactifAI] Scraping URL: ${sourceUrl}`);
       try {
         scrapedMeta = await scrapeWithTimeout(sourceUrl);
@@ -78,6 +92,17 @@ app.post("/analyze", async (req, res) => {
       const embeddedUrl = extractUrlFromText(trimmed);
       if (embeddedUrl) {
         sourceUrl = embeddedUrl;
+
+        // ── Pre-fetch: Social media blocklist check ──────────────────────────
+        if (isSocialMediaUrl(sourceUrl)) {
+          return res.status(400).json({
+            error: "Social media URLs are not supported for scraping. Please paste the post text directly into the input box.",
+            errorType: "INVALID_URL_CONTENT",
+            errorCode: "SOCIAL_MEDIA_URL",
+            suggestion: "Please paste the article text directly into the input box instead.",
+          });
+        }
+
         console.log(`[FactifAI] Embedded URL found: ${sourceUrl}`);
         try {
           scrapedMeta = await scrapeWithTimeout(sourceUrl);
@@ -88,23 +113,34 @@ app.post("/analyze", async (req, res) => {
       }
     }
 
-    // ── Post-Scrape Validation ────────────────────────────────────────────────
-    if (sourceUrl) {
-      const isContentValid = validateInputText(contentToAnalyze.slice(0, 1500));
-      if (!isContentValid) {
-        return sendError(400, "The URL does not appear to contain a valid news article. Please provide a direct link to an article.");
+    // ── Post-Scrape: Full URL Content Validation ──────────────────────────────
+    if (sourceUrl && scrapedMeta) {
+      const validation = validateUrlContent(sourceUrl, scrapedMeta);
+      if (!validation.valid) {
+        console.warn(`[FactifAI] URL rejected (${validation.errorCode}): ${validation.message}`);
+        return res.status(400).json({
+          error: validation.message,
+          errorType: validation.errorType,
+          errorCode: validation.errorCode,
+          suggestion: validation.suggestion,
+        });
       }
+      console.log(`[FactifAI] ✔ URL content validated`);
     }
 
     // ── Step 2: Source Credibility Scoring ────────────────────────────────────
     const sourceScore = scoreSource(sourceUrl);
 
-    // ── Step 3: AI Analysis (with the multi-key failover engine) ─────────────
+    // ── Step 3: AI Analysis then Deep Scan (sequential — deep scan needs main verdict) ──
     console.log(`[FactifAI] Analyzing content (${contentToAnalyze.length} chars)...`);
+
     const analysis = await analyzeContent(contentToAnalyze);
+    console.log(`[FactifAI] ✔ Main analysis: ${analysis.label} (${analysis.confidence}%)`);
+
+    const deepScan = await runDeepScan(contentToAnalyze, analysis);
 
     const elapsed = Date.now() - startTime;
-    console.log(`[FactifAI] ✔ ${analysis.label} (${analysis.confidence}%) in ${elapsed}ms`);
+    console.log(`[FactifAI] ✔ Full pipeline complete in ${elapsed}ms`);
 
     // ── Step 4: Build Response ────────────────────────────────────────────────
     const result = {
@@ -128,6 +164,7 @@ app.post("/analyze", async (req, res) => {
         status: analysis.verification?.status || "Unverified",
         explanation: analysis.verification?.explanation || "Could not verify.",
       },
+      deep_scan: deepScan,
       meta: {
         analyzedAt: new Date().toISOString(),
         contentLength: contentToAnalyze.length,

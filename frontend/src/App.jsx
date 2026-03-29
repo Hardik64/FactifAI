@@ -7,6 +7,7 @@ import {
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
 import 'regenerator-runtime/runtime';
 import ResultCard from "./components/ResultCard";
+import DeepScanCard from "./components/DeepScanCard";
 import LoadingSkeleton from "./components/LoadingSkeleton";
 import Sidebar from "./components/Sidebar";
 import { analyzeNews, fetchChats, createChat, fetchChat, addMessage, deleteChat, renameChat } from "./api";
@@ -108,7 +109,7 @@ function InputBar({ onSubmit, loading, value, onChange }) {
 
       // Reset the silence auto-stop timer
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-      
+
       silenceTimerRef.current = setTimeout(() => {
         SpeechRecognition.stopListening();
       }, 3000); // 3 seconds of silence
@@ -216,7 +217,7 @@ function InputBar({ onSubmit, loading, value, onChange }) {
             </div>
           </div>
         </div>
-        
+
         {/* Subtle footer credit area beneath the input */}
         <div className="text-center mt-3">
           <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>
@@ -422,7 +423,10 @@ export default function App() {
 
             {messages.map((msg, i) =>
               msg.type === "result" ? (
-                <ResultCard key={i} result={msg.data} index={i} />
+                <div key={i} className="space-y-6">
+                  <ResultCard result={msg.data} index={i} />
+                  <DeepScanCard deepScan={msg.data.deep_scan} />
+                </div>
               ) : null
             )}
 
@@ -440,14 +444,14 @@ export default function App() {
             )}
 
             {!activeChatId && messages.length > 0 && !loading && (
-               <div className="flex justify-center mt-6">
-                 <button onClick={handleClear}
-                   className="flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg transition-all hover:scale-105"
-                   style={{ color: "var(--text-muted)", background: "var(--bg-secondary)", border: "1px solid var(--border)" }}>
-                   <RotateCcw size={11} />
-                   Clear chat
-                 </button>
-               </div>
+              <div className="flex justify-center mt-6">
+                <button onClick={handleClear}
+                  className="flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg transition-all hover:scale-105"
+                  style={{ color: "var(--text-muted)", background: "var(--bg-secondary)", border: "1px solid var(--border)" }}>
+                  <RotateCcw size={11} />
+                  Clear chat
+                </button>
+              </div>
             )}
 
             <div ref={bottomRef} className="h-4" />
